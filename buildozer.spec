@@ -15,7 +15,7 @@ fullscreen = 0
 android.permissions = INTERNET,ACCESS_NETWORK_STATE,VIBRATE
 android.release = 0
 android.debuggable = 1
-p4a.branch = release-2022.12.0
+p4a.branch =master
 p4a.bootstrap = sdl2
 
 [android]
