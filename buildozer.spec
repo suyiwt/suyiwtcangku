@@ -1,4 +1,5 @@
 [app]
+version = 0.1
 package.name = itsctimer
 package.domain = org.itsctimer
 source.dir = .
