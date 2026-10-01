@@ -1,0 +1,33 @@
+name: Build ITSC Timer APK
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # 支持手动点击运行打包
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies for buildozer
+        run: |
+          sudo apt update -y
+          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config libpng-dev libjpeg-dev libtiff-dev libwebp-dev libssl-dev libffi-dev python3-dev build-essential
+
+      - name: Install buildozer
+        run: |
+          pip3 install --upgrade buildozer
+
+      - name: Build debug APK
+        run: |
+          buildozer android debug
+
+      - name: Upload compiled APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ITSC-Timer-APK
+          path: bin/*.apk
