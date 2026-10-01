@@ -4,7 +4,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # 支持手动点击运行打包
+  workflow_dispatch: # 手动触发打包
 
 jobs:
   build-apk:
