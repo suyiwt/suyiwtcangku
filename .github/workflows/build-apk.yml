@@ -4,7 +4,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # 手动触发打包
+  workflow_dispatch:
 
 jobs:
   build-apk:
@@ -14,7 +14,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: 更换apt清华源，加速系统包安装
+      - name: 更换apt清华源
         run: |
           sudo sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
           sudo apt update -y
@@ -25,19 +25,20 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
 
-      - name: Install buildozer (清华pip源)
+      - name: Install buildozer
         run: |
           pip3 install --upgrade buildozer -i https://pypi.tuna.tsinghua.edu.cn/simple
         env:
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      - name: Cache buildozer SDK & NDK
-        uses: actions/cache@v4
-        with:
-          path: .buildozer
-          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}-${{ github.sha }}
-          restore-keys: |
-            buildozer-cache-${{ hashFiles('buildozer.spec') }}-
+      # ========== 暂时注释缓存，第一次打包先关闭缓存 ==========
+      # - name: Cache buildozer SDK & NDK
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: .buildozer
+      #     key: buildozer-cache-${{ hashFiles('buildozer.spec') }}-${{ github.sha }}
+      #     restore-keys: |
+      #       buildozer-cache-${{ hashFiles('buildozer.spec') }}-
 
       - name: Generate buildozer spec (if missing)
         run: |
@@ -46,39 +47,21 @@ jobs:
           JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      # ========== 核心修复：分步打包，先初始化SDK，再接受许可证 ==========
-      - name: Step1 - Initialize SDK (will fail on license prompt)
-        run: |
-          set +e
-          buildozer android debug
-          set -e
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
-          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
-
-      - name: Step2 - Accept all Android SDK licenses
-        run: |
-          SDK_FOLDER=".buildozer/android/platform/android-sdk"
-          if [ -d "${SDK_FOLDER}/cmdline-tools/latest/bin" ]; then
-            yes | ${SDK_FOLDER}/cmdline-tools/latest/bin/sdkmanager --licenses
-          fi
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
-
-      - name: Step3 - Build debug APK (real compile)
+      # 一次性打包，此时p4a只会请求build-tools;34.0.0
+      - name: Build debug APK
         run: |
           buildozer android debug
         env:
           JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      - name: Upload compiled APK as artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ITSC-Timer-APK
           path: bin/*.apk
 
-      - name: Dump buildozer log on failure
+      - name: Dump buildozer log if failed
         if: failure()
         run: |
-          cat .buildozer/logs/buildozer.log || echo "No buildozer log found"
+          cat .buildozer/logs/buildozer.log || echo "Log not found"
