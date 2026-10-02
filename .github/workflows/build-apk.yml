@@ -13,17 +13,24 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Install system dependencies for buildozer
+      - name: Install system dependencies & JDK11
         run: |
           sudo apt update -y
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config libpng-dev libjpeg-dev libtiff-dev libwebp-dev libssl-dev libffi-dev python3-dev build-essential
+          sudo apt install -y git zip unzip openjdk-11-jdk python3-pip autoconf libtool pkg-config libpng-dev libjpeg-dev libtiff-dev libwebp-dev libssl-dev libffi-dev python3-dev build-essential
+          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
       - name: Install buildozer
         run: |
           pip3 install --upgrade buildozer
 
+      # 可选：如果仓库没有 buildozer.spec，取消下面注释自动生成一次
+      # - name: Generate buildozer spec (if missing)
+      #   run: |
+      #     if [ ! -f buildozer.spec ]; then buildozer init; fi
+
       - name: Build debug APK
         run: |
+          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
           buildozer android debug
 
       - name: Upload compiled APK as artifact
