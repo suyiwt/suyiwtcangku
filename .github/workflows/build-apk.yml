@@ -21,9 +21,17 @@ jobs:
 
       - name: Install buildozer
         run: |
-          pip3 install --upgrade buildozer
+          # 使用清华pip源加速安装buildozer
+          pip3 install --upgrade buildozer -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-      # 可选：如果仓库没有 buildozer.spec，取消下面注释自动生成一次
+      # 缓存 buildozer 的SDK、NDK工具链，避免每次重复下载
+      - name: Cache buildozer SDK & NDK
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}
+
+      # 可选：仓库无buildozer.spec时，取消注释自动生成
       # - name: Generate buildozer spec (if missing)
       #   run: |
       #     if [ ! -f buildozer.spec ]; then buildozer init; fi
@@ -31,6 +39,8 @@ jobs:
       - name: Build debug APK
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+          # 全局使用清华pip源，加速python依赖包下载(kivy/plyer等)
+          export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
           buildozer android debug
 
       - name: Upload compiled APK as artifact
