@@ -27,8 +27,6 @@ android.debuggable = 1
 
 p4a.branch = develop
 p4a.bootstrap = sdl2
-# 关键：自动接受SDK许可，解决CI交互确认弹窗
-p4a.extra_args = --sdk-manager-args=--accept-licenses
 
 [buildozer]
 log_level = 2
