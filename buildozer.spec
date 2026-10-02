@@ -10,7 +10,7 @@ android.ndk = 25b
 android.sdk = 24
 android.minapi = 21
 # 打包依赖，kivy + plyer（用于通知、震动）
-requirements = python3,kivy==2.3.0,plyer==2.1.0
+requirements = python3,kivy==2.3.1,plyer
 title = ITSC Ticket Timer V1
 orientation = portrait
 fullscreen = 0
