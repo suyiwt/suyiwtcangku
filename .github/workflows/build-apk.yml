@@ -9,7 +9,6 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    # 超时时间，buildozer编译很慢，设置120分钟
     timeout-minutes: 120
     steps:
       - name: Checkout source code
@@ -36,7 +35,6 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .buildozer
-          # 缓存key：spec文件hash + 提交hash，spec改动就清缓存
           key: buildozer-cache-${{ hashFiles('buildozer.spec') }}-${{ github.sha }}
           restore-keys: |
             buildozer-cache-${{ hashFiles('buildozer.spec') }}-
@@ -48,7 +46,26 @@ jobs:
           JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      - name: Build debug APK
+      # ========== 核心修复：分步打包，先初始化SDK，再接受许可证 ==========
+      - name: Step1 - Initialize SDK (will fail on license prompt)
+        run: |
+          set +e
+          buildozer android debug
+          set -e
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+
+      - name: Step2 - Accept all Android SDK licenses
+        run: |
+          SDK_FOLDER=".buildozer/android/platform/android-sdk"
+          if [ -d "${SDK_FOLDER}/cmdline-tools/latest/bin" ]; then
+            yes | ${SDK_FOLDER}/cmdline-tools/latest/bin/sdkmanager --licenses
+          fi
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+
+      - name: Step3 - Build debug APK (real compile)
         run: |
           buildozer android debug
         env:
