@@ -31,33 +31,26 @@ jobs:
         env:
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      # ====================== 【核心】手动下载Android SDK cmdline-tools ======================
+      # ====================== 【修复后】清华镜像下载Android SDK ======================
       - name: Download & setup Android SDK
         run: |
-          # 定义SDK根目录
           export SDK_ROOT=${GITHUB_WORKSPACE}/android-sdk
           mkdir -p ${SDK_ROOT}/cmdline-tools
           cd ${SDK_ROOT}/cmdline-tools
-
-          # 下载官方cmdline-tools（Linux版）
-          wget -q https://dl.google.com/android/repository/cmdline-tools-linux-11.0.zip
+          # 清华镜像下载cmdline-tools
+          wget --timeout=30 -q https://mirrors.tuna.tsinghua.edu.cn/android/repository/cmdline-tools-linux-11.0.zip
           unzip -q cmdline-tools-linux-11.0.zip
-          # 重命名，sdkmanager要求目录名必须是latest
           mv cmdline-tools latest
           cd latest/bin
           chmod +x sdkmanager
-
-          # ✅ 一次性接受全部SDK许可证
+          # 一次性接受全部SDK许可证
           yes | ./sdkmanager --licenses
-
-          # 安装我们需要的组件：platforms;android-33  + build-tools;34.0.0
+          # 安装platform33 + build-tools34
           ./sdkmanager "platforms;android-33" "build-tools;34.0.0"
-
-          # 写入环境变量，后面步骤继承SDK路径
+          # 导出环境变量
           echo "ANDROID_SDK_ROOT=${SDK_ROOT}" >> $GITHUB_ENV
           echo "ANDROID_HOME=${SDK_ROOT}" >> $GITHUB_ENV
 
-      # 生成spec（不存在才新建）
       - name: Generate buildozer spec (if missing)
         run: |
           if [ ! -f buildozer.spec ]; then buildozer init; fi
@@ -67,7 +60,6 @@ jobs:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      # 打包APK，buildozer/p4a会读取ANDROID_SDK_ROOT，使用我们预先装好的SDK
       - name: Build debug APK
         run: |
           buildozer android debug
