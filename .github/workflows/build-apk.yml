@@ -9,42 +9,59 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    # 超时时间，buildozer编译很慢，设置120分钟
+    timeout-minutes: 120
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
+      - name: 更换apt清华源，加速系统包安装
+        run: |
+          sudo sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
+          sudo apt update -y
+
       - name: Install system dependencies & JDK11
         run: |
-          sudo apt update -y
           sudo apt install -y git zip unzip openjdk-11-jdk python3-pip autoconf libtool pkg-config libpng-dev libjpeg-dev libtiff-dev libwebp-dev libssl-dev libffi-dev python3-dev build-essential
-          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
 
-      - name: Install buildozer
+      - name: Install buildozer (清华pip源)
         run: |
-          # 使用清华pip源加速安装buildozer
           pip3 install --upgrade buildozer -i https://pypi.tuna.tsinghua.edu.cn/simple
+        env:
+          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      # 缓存 buildozer 的SDK、NDK工具链，避免每次重复下载
       - name: Cache buildozer SDK & NDK
         uses: actions/cache@v4
         with:
           path: .buildozer
-          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}
+          # 缓存key：spec文件hash + 提交hash，spec改动就清缓存
+          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}-${{ github.sha }}
+          restore-keys: |
+            buildozer-cache-${{ hashFiles('buildozer.spec') }}-
 
-      # 可选：仓库无buildozer.spec时，取消注释自动生成
-      # - name: Generate buildozer spec (if missing)
-      #   run: |
-      #     if [ ! -f buildozer.spec ]; then buildozer init; fi
+      - name: Generate buildozer spec (if missing)
+        run: |
+          if [ ! -f buildozer.spec ]; then buildozer init; fi
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
       - name: Build debug APK
         run: |
-          export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
-          # 全局使用清华pip源，加速python依赖包下载(kivy/plyer等)
-          export PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
           buildozer android debug
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
       - name: Upload compiled APK as artifact
         uses: actions/upload-artifact@v4
         with:
           name: ITSC-Timer-APK
           path: bin/*.apk
+
+      - name: Dump buildozer log on failure
+        if: failure()
+        run: |
+          cat .buildozer/logs/buildozer.log || echo "No buildozer log found"
