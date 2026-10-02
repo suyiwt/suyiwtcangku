@@ -1,4 +1,4 @@
-[app]
+ [app]
 version = 1.0.0
 package.name = itsctimer
 package.domain = org.itsctimer
@@ -24,8 +24,6 @@ android.debuggable = 1
 
 p4a.branch = develop
 p4a.bootstrap = sdl2
-# 强制锁定build-tools版本为34.0.0，避开37许可证问题
-p4a.extra_args = --android-build-tools=34.0.0
 
 [buildozer]
 log_level = 2
