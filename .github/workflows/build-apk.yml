@@ -9,12 +9,12 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: 更换apt清华源，更新系统
+      - name: 更换apt清华源
         run: |
           sudo sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
           sudo apt update -y
@@ -28,30 +28,36 @@ jobs:
       - name: 安装buildozer
         run: |
           pip3 install --upgrade buildozer -i https://pypi.tuna.tsinghua.edu.cn/simple
-        env:
-          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      # ========== 关键：预先接受所有Android SDK许可证（在buildozer目录内） ==========
-      - name: 预下载SDK并接受全部许可
+      - name: Cache buildozer .buildozer
+        uses: actions/cache@v3
+        with:
+          path: ~/.buildozer
+          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}
+
+      # ========== 核心步骤：手动初始化buildozer的SDK，预先安装所有需要包，提前接受license ==========
+      - name: 初始化buildozer SDK目录，手动安装SDK组件
         run: |
-          # 先让buildozer生成目录
+          # 触发buildozer下载cmdline-tools，生成SDK目录
           buildozer android sdkinstall || true
-          # 进入buildozer自己的sdk目录，执行许可证同意
-          SDK_PATH=${HOME}/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
-          if [ -d "$SDK_PATH" ]; then
-            cd $SDK_PATH
-            yes | ./sdkmanager --licenses
-          fi
+          SDK_ROOT=${HOME}/.buildozer/android/platform/android-sdk
+          SDK_BIN=${SDK_ROOT}/cmdline-tools/latest/bin
+          # 接受全部许可
+          yes | ${SDK_BIN}/sdkmanager --licenses
+          # 强制安装需要的包，一次性装好platforms和build-tools
+          ${SDK_BIN}/sdkmanager --install "platforms;android-33" "build-tools;37.0.0" --yes
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
-      - name: Generate buildozer spec (if missing)
+      - name: Generate buildozer spec
         run: |
           if [ ! -f buildozer.spec ]; then buildozer init; fi
-          # 开启自动接受许可，锁定api和build-tools版本
           sed -i 's/^android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
           sed -i 's/^android.api =.*/android.api = 33/g' buildozer.spec
           sed -i 's/^android.build_tools =.*/android.build_tools = 37.0.0/g' buildozer.spec
+          # 禁止p4a自动下载SDK，告诉p4a使用已经装好的SDK
+          sed -i '/android.sdk_path =/d' buildozer.spec
+          echo "android.sdk_path = ${HOME}/.buildozer/android/platform/android-sdk" >> buildozer.spec
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
@@ -61,6 +67,8 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+          P4A_RELEASES_MIRROR_URL: https://mirrors.tuna.tsinghua.edu.cn/github-release/kivy/python-for-android/
+          P4A_BOOTSTRAP_MIRROR_URL: https://mirrors.tuna.tsinghua.edu.cn/github-release/kivy/python-for-android/
 
       - name: 上传APK产物
         uses: actions/upload-artifact@v4
@@ -68,7 +76,7 @@ jobs:
           name: ITSC-Timer-APK
           path: bin/*.apk
 
-      - name: 失败时打印日志
+      - name: 失败打印日志
         if: failure()
         run: |
-          cat .buildozer/logs/buildozer.log || echo "Log not found"
+          cat ~/.buildozer/logs/buildozer.log || echo "Log not found"
