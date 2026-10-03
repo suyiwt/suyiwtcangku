@@ -9,7 +9,7 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -28,12 +28,8 @@ jobs:
       - name: 安装buildozer
         run: |
           pip3 install --upgrade buildozer -i https://pypi.tuna.tsinghua.edu.cn/simple
-
-      - name: Cache buildozer ~/.buildozer
-        uses: actions/cache@v3
-        with:
-          path: ~/.buildozer
-          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}
+        env:
+          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
       # ========= 手动下载cmdline-tools，安装SDK组件 =========
       - name: 手动下载Android cmdline-tools并预安装SDK
@@ -49,31 +45,40 @@ jobs:
           export ANDROID_HOME=${SDK_ROOT}
           # 接受全部许可，安装平台和build-tools
           yes | ${SDK_BIN}/sdkmanager --licenses
-          # 【修复】把不存在的37.0.0改成34.0.0
           ${SDK_BIN}/sdkmanager --install "platforms;android-33" "build-tools;34.0.0" --yes
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+
+      # 【调整】缓存放在SDK安装之后
+      - name: Cache buildozer ~/.buildozer
+        uses: actions/cache@v3
+        with:
+          path: ~/.buildozer
+          key: buildozer-cache-${{ hashFiles('buildozer.spec', 'requirements.txt') }}
+          restore-keys: |
+            buildozer-cache-
 
       - name: Generate buildozer spec
         run: |
           if [ ! -f buildozer.spec ]; then buildozer init; fi
           sed -i 's/^android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
           sed -i 's/^android.api =.*/android.api = 33/g' buildozer.spec
-          # 【修复】build-tools版本同步修改
           sed -i 's/^android.build_tools =.*/android.build_tools = 34.0.0/g' buildozer.spec
-          # 指定已经装好的SDK路径，不让buildozer重新下载SDK
+          # 删除旧sdk_path行，重新写入
           sed -i '/android.sdk_path =/d' buildozer.spec
           echo "android.sdk_path = ${HOME}/.buildozer/android/platform/android-sdk" >> buildozer.spec
+          cat buildozer.spec # 打印出来校验
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
       - name: Build debug APK
         run: |
+          export ANDROID_HOME=${HOME}/.buildozer/android/platform/android-sdk
           buildozer android debug
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_HOME: ${{HOME}}/.buildozer/android/platform/android-sdk
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
-          # 清华p4a镜像
           P4A_RELEASES_MIRROR_URL: https://mirrors.tuna.tsinghua.edu.cn/github-release/kivy/python-for-android/
 
       - name: 上传APK产物
