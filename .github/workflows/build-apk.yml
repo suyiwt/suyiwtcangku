@@ -1,56 +1,49 @@
-
-name: Build ITSC Timer APK
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
-jobs:
-  build-apk:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: 更换apt清华源
-        run: |
-          sudo sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
-          sudo apt update -y
-
-      - name: 安装系统依赖 + JDK17
-        run: |
-          sudo apt install -y git zip unzip wget openjdk-17-jdk python3-pip autoconf libtool pkg-config libpng-dev libjpeg-dev libtiff-dev libwebp-dev libssl-dev libffi-dev python3-dev build-essential
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-
-      - name: 安装buildozer
-        run: |
-          pip3 install --upgrade buildozer -i https://pypi.tuna.tsinghua.edu.cn/simple
-
-      - name: Cache buildozer .buildozer
-        uses: actions/cache@v3
-        with:
-          path: ~/.buildozer
-          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            buildozer-cache-
-
-      - name: Build debug APK
-        run: |
-          buildozer android debug
-        env:
-          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
-          P4A_RELEASES_MIRROR_URL: https://mirrors.tuna.tsinghua.edu.cn/github-release/kivy/python-for-android/
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ITSC-Timer-APK
-          path: bin/*.apk
-
-      - name: Print buildozer log on failure
-        if: failure()
-        run: |
-          cat ~/.buildozer/logs/buildozer.log || echo "No log found"
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: default
+  labels:
+    app: demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: demo
+  template:
+    metadata:
+      labels:
+        app: demo
+    spec:
+      containers:
+      - name: demo-container
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+# service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-svc
+spec:
+  selector:
+    app: demo
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
