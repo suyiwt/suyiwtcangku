@@ -31,45 +31,30 @@ jobs:
         env:
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      # ========= 手动下载cmdline-tools，安装SDK组件 =========
+      # ========= 手动下载Android cmdline-tools【清华镜像】 =========
       - name: 手动下载Android cmdline-tools并预安装SDK
         run: |
           SDK_ROOT=${HOME}/.buildozer/android/platform/android-sdk
           mkdir -p ${SDK_ROOT}/cmdline-tools/latest
-          # 下载linux版cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline.zip
+          # 清华镜像下载cmdline-tools，增加重试和超时
+          wget --tries=3 --timeout=60 -q https://mirrors.tuna.tsinghua.edu.cn/github-release/android/tools_repo/commandlinetools-linux-11076708_latest.zip -O cmdline.zip
           unzip -q cmdline.zip -d cmdline
-          # 移动到buildozer的sdk目录
           mv cmdline/cmdline-tools/* ${SDK_ROOT}/cmdline-tools/latest/
           SDK_BIN=${SDK_ROOT}/cmdline-tools/latest/bin
           export ANDROID_HOME=${SDK_ROOT}
-          # 接受全部许可，安装平台和build-tools
           yes | ${SDK_BIN}/sdkmanager --licenses
           ${SDK_BIN}/sdkmanager --install "platforms;android-33" "build-tools;34.0.0" --yes
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
-      # 【调整】缓存放在SDK安装之后
+      # 缓存放在SDK安装完成之后
       - name: Cache buildozer ~/.buildozer
         uses: actions/cache@v3
         with:
           path: ~/.buildozer
-          key: buildozer-cache-${{ hashFiles('buildozer.spec', 'requirements.txt') }}
+          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
             buildozer-cache-
-
-      - name: Generate buildozer spec
-        run: |
-          if [ ! -f buildozer.spec ]; then buildozer init; fi
-          sed -i 's/^android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
-          sed -i 's/^android.api =.*/android.api = 33/g' buildozer.spec
-          sed -i 's/^android.build_tools =.*/android.build_tools = 34.0.0/g' buildozer.spec
-          # 删除旧sdk_path行，重新写入
-          sed -i '/android.sdk_path =/d' buildozer.spec
-          echo "android.sdk_path = ${HOME}/.buildozer/android/platform/android-sdk" >> buildozer.spec
-          cat buildozer.spec # 打印出来校验
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
       - name: Build debug APK
         run: |
