@@ -31,23 +31,27 @@ jobs:
         env:
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          # 这里统一使用37.0.0，和buildozer保持一致
-          packages: >
-            platforms;android-33
-            build-tools;37.0.0
-            platform-tools
+      # ========== 关键：预先接受所有Android SDK许可证（在buildozer目录内） ==========
+      - name: 预下载SDK并接受全部许可
+        run: |
+          # 先让buildozer生成目录
+          buildozer android sdkinstall || true
+          # 进入buildozer自己的sdk目录，执行许可证同意
+          SDK_PATH=${HOME}/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin
+          if [ -d "$SDK_PATH" ]; then
+            cd $SDK_PATH
+            yes | ./sdkmanager --licenses
+          fi
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
       - name: Generate buildozer spec (if missing)
         run: |
           if [ ! -f buildozer.spec ]; then buildozer init; fi
-          # 关键！自动开启接受SDK许可证，CI环境必备
+          # 开启自动接受许可，锁定api和build-tools版本
           sed -i 's/^android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
-          # 固定build-tools版本，和前面SDK安装版本对齐
-          sed -i 's/^android.build_tools =.*/android.build_tools = 37.0.0/g' buildozer.spec
           sed -i 's/^android.api =.*/android.api = 33/g' buildozer.spec
+          sed -i 's/^android.build_tools =.*/android.build_tools = 37.0.0/g' buildozer.spec
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
