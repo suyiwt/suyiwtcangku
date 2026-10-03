@@ -19,11 +19,11 @@ jobs:
           sudo sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
           sudo apt update -y
 
-      - name: 安装系统依赖 + JDK11
+      - name: 安装系统依赖 + JDK17
         run: |
-          sudo apt install -y git zip unzip openjdk-11-jdk python3-pip autoconf libtool pkg-config libpng-dev libjpeg-dev libtiff-dev libwebp-dev libssl-dev libffi-dev python3-dev build-essential
+          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config libpng-dev libjpeg-dev libtiff-dev libwebp-dev libssl-dev libffi-dev python3-dev build-essential
         env:
-          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
       - name: 安装buildozer
         run: |
@@ -31,31 +31,41 @@ jobs:
         env:
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
 
-      # ====================== 【修复后】清华镜像下载Android SDK ======================
+      - name: Cache Android SDK
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/android-sdk
+          key: android-sdk-itsc-timer-${{ hashFiles('**/buildozer.spec') }}
+
+      # ====================== 修复Android SDK安装步骤 ======================
       - name: Download & setup Android SDK
         run: |
           export SDK_ROOT=${GITHUB_WORKSPACE}/android-sdk
-          mkdir -p ${SDK_ROOT}/cmdline-tools
-          cd ${SDK_ROOT}/cmdline-tools
-          # 清华镜像下载cmdline-tools
-          wget --timeout=30 -q https://mirrors.tuna.tsinghua.edu.cn/android/repository/cmdline-tools-linux-11.0.zip
+          mkdir -p ${SDK_ROOT}/cmdline-tools/latest
+          cd ${SDK_ROOT}/cmdline-tools/latest
+          # 清华镜像下载cmdline-tools 11.0，增加重试
+          wget --timeout=30 --tries=3 -q https://mirrors.tuna.tsinghua.edu.cn/android/repository/cmdline-tools-linux-11.0.zip
           unzip -q cmdline-tools-linux-11.0.zip
-          mv cmdline-tools latest
-          cd latest/bin
-          chmod +x sdkmanager
-          # 一次性接受全部SDK许可证
-          yes | ./sdkmanager --licenses
-          # 安装platform33 + build-tools34
-          ./sdkmanager "platforms;android-33" "build-tools;34.0.0"
+          # 压缩包内文件在cmdline-tools文件夹，移动到当前latest目录
+          mv cmdline-tools/* .
+          rm -rf cmdline-tools
+          chmod +x bin/sdkmanager
+          export PATH=$PWD/bin:$PATH
+          # 自动接受许可，安装SDK组件
+          sdkmanager --sdk_root=${SDK_ROOT} --yes --licenses
+          sdkmanager --sdk_root=${SDK_ROOT} --yes "platforms;android-33" "build-tools;34.0.0" platform-tools
           # 导出环境变量
           echo "ANDROID_SDK_ROOT=${SDK_ROOT}" >> $GITHUB_ENV
           echo "ANDROID_HOME=${SDK_ROOT}" >> $GITHUB_ENV
+          echo "${SDK_ROOT}/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
       - name: Generate buildozer spec (if missing)
         run: |
           if [ ! -f buildozer.spec ]; then buildozer init; fi
         env:
-          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
@@ -64,7 +74,7 @@ jobs:
         run: |
           buildozer android debug
         env:
-          JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
