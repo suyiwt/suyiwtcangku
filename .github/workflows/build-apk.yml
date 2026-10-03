@@ -1,78 +1,43 @@
-name: Build ITSC Timer APK
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:
+[app]
 
-jobs:
-  build-apk:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+# 包名，必须小写，无空格
+package.name = itsctimer
+package.domain = org.itsctimer
+app_name = ITSC Timer
 
-      - name: 更换apt清华源
-        run: |
-          sudo sed -i 's/archive.ubuntu.com/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
-          sudo apt update -y
+source.dir = .
+source.include_exts = py,png,jpg,svg,ttf
+source.exclude_dirs = tests, bin, .github, .git
 
-      - name: 安装系统依赖 + JDK17
-        run: |
-          sudo apt install -y git zip unzip wget openjdk-17-jdk python3-pip autoconf libtool pkg-config libpng-dev libjpeg-dev libtiff-dev libwebp-dev libssl-dev libffi-dev python3-dev build-essential
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+# 依赖：kivy 2.3.0 + plyer（安卓通知震动）
+requirements = python3,kivy==2.3.0,plyer
 
-      - name: 安装buildozer
-        run: |
-          pip3 install --upgrade buildozer -i https://pypi.tuna.tsinghua.edu.cn/simple
-        env:
-          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+# Android SDK配置（和workflow对齐）
+android.api = 33
+android.build_tools = 34.0.0
+android.ndk = 25b
+android.sdk_path = /home/runner/.buildozer/android/platform/android-sdk
+android.accept_sdk_license = True
 
-      # ========= 手动下载Android cmdline-tools【清华镜像】 =========
-      - name: 手动下载Android cmdline-tools并预安装SDK
-        run: |
-          SDK_ROOT=${HOME}/.buildozer/android/platform/android-sdk
-          mkdir -p ${SDK_ROOT}/cmdline-tools/latest
-          # 清华镜像下载cmdline-tools，增加重试和超时
-          wget --tries=3 --timeout=60 -q https://mirrors.tuna.tsinghua.edu.cn/github-release/android/tools_repo/commandlinetools-linux-11076708_latest.zip -O cmdline.zip
-          unzip -q cmdline.zip -d cmdline
-          mv cmdline/cmdline-tools/* ${SDK_ROOT}/cmdline-tools/latest/
-          SDK_BIN=${SDK_ROOT}/cmdline-tools/latest/bin
-          export ANDROID_HOME=${SDK_ROOT}
-          yes | ${SDK_BIN}/sdkmanager --licenses
-          ${SDK_BIN}/sdkmanager --install "platforms;android-33" "build-tools;34.0.0" --yes
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+# 安卓权限（plyer通知、震动必须）
+android.permissions = VIBRATE,POST_NOTIFICATIONS,INTERNET
+android.private_api = False
 
-      # 缓存放在SDK安装完成之后
-      - name: Cache buildozer ~/.buildozer
-        uses: actions/cache@v3
-        with:
-          path: ~/.buildozer
-          key: buildozer-cache-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            buildozer-cache-
+# 方向：竖屏
+android.orientation = portrait
+android.allow_backup = True
 
-      - name: Build debug APK
-        run: |
-          export ANDROID_HOME=${HOME}/.buildozer/android/platform/android-sdk
-          buildozer android debug
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-          ANDROID_HOME: ${{HOME}}/.buildozer/android/platform/android-sdk
-          PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
-          P4A_RELEASES_MIRROR_URL: https://mirrors.tuna.tsinghua.edu.cn/github-release/kivy/python-for-android/
+# 不要自动下载SDK，我们workflow手动预置
+android.skip_update = True
 
-      - name: 上传APK产物
-        uses: actions/upload-artifact@v4
-        with:
-          name: ITSC-Timer-APK
-          path: bin/*.apk
+# 日志关闭（和你代码KIVY_NO_CONSOLELOG匹配）
+log_level = 0
 
-      - name: 失败打印日志
-        if: failure()
-        run: |
-          cat ~/.buildozer/logs/buildozer.log || echo "Log not found"
+# 打包配置
+android.debug_manifest = True
+android.add_aar = 
+android.add_jar = 
+
+[buildozer]
+log_level = 2
+warn_on_root = 1
