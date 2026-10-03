@@ -46,9 +46,11 @@ jobs:
           # 移动到buildozer的sdk目录
           mv cmdline/cmdline-tools/* ${SDK_ROOT}/cmdline-tools/latest/
           SDK_BIN=${SDK_ROOT}/cmdline-tools/latest/bin
+          export ANDROID_HOME=${SDK_ROOT}
           # 接受全部许可，安装平台和build-tools
           yes | ${SDK_BIN}/sdkmanager --licenses
-          ${SDK_BIN}/sdkmanager --install "platforms;android-33" "build-tools;37.0.0" --yes
+          # 【修复】把不存在的37.0.0改成34.0.0
+          ${SDK_BIN}/sdkmanager --install "platforms;android-33" "build-tools;34.0.0" --yes
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
@@ -57,7 +59,8 @@ jobs:
           if [ ! -f buildozer.spec ]; then buildozer init; fi
           sed -i 's/^android.accept_sdk_license = False/android.accept_sdk_license = True/g' buildozer.spec
           sed -i 's/^android.api =.*/android.api = 33/g' buildozer.spec
-          sed -i 's/^android.build_tools =.*/android.build_tools = 37.0.0/g' buildozer.spec
+          # 【修复】build-tools版本同步修改
+          sed -i 's/^android.build_tools =.*/android.build_tools = 34.0.0/g' buildozer.spec
           # 指定已经装好的SDK路径，不让buildozer重新下载SDK
           sed -i '/android.sdk_path =/d' buildozer.spec
           echo "android.sdk_path = ${HOME}/.buildozer/android/platform/android-sdk" >> buildozer.spec
@@ -70,8 +73,8 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           PIP_INDEX_URL: https://pypi.tuna.tsinghua.edu.cn/simple
+          # 清华p4a镜像
           P4A_RELEASES_MIRROR_URL: https://mirrors.tuna.tsinghua.edu.cn/github-release/kivy/python-for-android/
-          P4A_BOOTSTRAP_MIRROR_URL: https://mirrors.tuna.tsinghua.edu.cn/github-release/kivy/python-for-android/
 
       - name: 上传APK产物
         uses: actions/upload-artifact@v4
