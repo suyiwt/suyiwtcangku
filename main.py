@@ -5,7 +5,7 @@ os.environ['KIVY_NO_CONSOLELOG'] = '1'
 os.environ["KIVY_METRICS_DENSITY"] = "1"
 
 import kivy
-kivy.require('1.9.1')
+kivy.require('2.3.0')
 import platform
 import threading
 import time
