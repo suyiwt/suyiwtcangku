@@ -123,7 +123,7 @@ class MainLayout(BoxLayout):
         self.flash_color_state = False
 
         # 标题
-        self.add_widget(Label(text="ITSC Ticket Timer V1", font_size="20sp", bold=True, size_hint_y=None, height=40))
+        self.add_widget(Label(text="ITSC Ticket Timer V1 For Andriod", font_size="20sp", bold=True, size_hint_y=None, height=40))
 
         # 输入区域
         input_box = BoxLayout(orientation="vertical", spacing=10, size_hint_y=None, height=170)
