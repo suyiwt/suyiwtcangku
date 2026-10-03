@@ -3,7 +3,6 @@ import os
 os.environ['KIVY_NO_BUGREPORT'] = '1'
 os.environ['KIVY_NO_CONSOLELOG'] = '1'
 os.environ["KIVY_METRICS_DENSITY"] = "1"
-
 import kivy
 kivy.require('2.3.0')
 import platform
@@ -20,20 +19,17 @@ from kivy.uix.popup import Popup
 from kivy.core.window import Window
 from kivy.clock import Clock, mainthread
 from kivy.graphics import Color, Rectangle
-
 # plyer 安卓原生接口
 try:
     from plyer import notification, vibrator
     plyer_available = True
 except Exception:
     plyer_available = False
-
 # Windows 蜂鸣
 try:
     import winsound
 except ImportError:
     winsound = None
-
 
 class TimerLogic:
     def __init__(self):
@@ -52,26 +48,20 @@ class TimerLogic:
             e_hours = float(elapsed_h) if elapsed_h else 0
             e_mins = float(elapsed_m) if elapsed_m else 0
             target = float(target_pct) if target_pct else 0
-
             self.total_seconds = int(d_hours * 3600)
             self.initial_elapsed = int(e_hours * 3600) + int(e_mins * 60)
             self.target_pct = int(target)
-
             if self.total_seconds <= 0:
                 return -1, "Delivery time must be greater than 0,baby!."
-
             alert_point = int(self.total_seconds * target / 100.0)
-
             if self.initial_elapsed >= alert_point:
                 return -1, f"Elapsed time has already reached {int(target)}% mark.Check input."
-
             self.remaining_seconds = alert_point - self.initial_elapsed
             self.started_at = datetime.now()
             self.is_running = True
             self._stop_event.clear()
             self._thread = threading.Thread(target=self._countdown_thread, daemon=True)
             self._thread.start()
-
             eta = self.started_at + timedelta(seconds=self.remaining_seconds)
             msg = (f"Started\n"
                    f"Total:{self.total_seconds}s\n"
@@ -110,7 +100,6 @@ class TimerLogic:
             return None
         return self.started_at + timedelta(seconds=self.remaining_seconds)
 
-
 class MainLayout(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -121,10 +110,8 @@ class MainLayout(BoxLayout):
         self.trigger_target_reached = False
         self.flash_active = False
         self.flash_color_state = False
-
         # 标题
-        self.add_widget(Label(text="ITSC Ticket Timer V1 For Andriod", font_size="20sp", bold=True, size_hint_y=None, height=40))
-
+        self.add_widget(Label(text="ITSC Ticket Timer V1 For Android", font_size="20sp", bold=True, size_hint_y=None, height=40))
         # 输入区域
         input_box = BoxLayout(orientation="vertical", spacing=10, size_hint_y=None, height=170)
         row1 = BoxLayout(size_hint_y=None, height=45)
@@ -132,7 +119,6 @@ class MainLayout(BoxLayout):
         self.input_delivery = TextInput(text="2.1", font_size="18sp", multiline=False, input_filter="float")
         row1.add_widget(self.input_delivery)
         input_box.add_widget(row1)
-
         row2 = BoxLayout(size_hint_y=None, height=45)
         row2.add_widget(Label(text=" Elapsed(h):", size_hint_x=0.25))
         self.input_h = TextInput(text="1", font_size="18sp", multiline=False, input_filter="float")
@@ -141,7 +127,6 @@ class MainLayout(BoxLayout):
         self.input_m = TextInput(text="40", font_size="18sp", multiline=False, input_filter="float")
         row2.add_widget(self.input_m)
         input_box.add_widget(row2)
-
         row3 = BoxLayout(orientation="vertical", size_hint_y=None, height=70)
         self.slider_label = Label(text="Target progress:81%", font_size="14sp", size_hint_y=None, height=22)
         self.slider_target = Slider(min=1, max=100, value=81, step=1)
@@ -150,11 +135,9 @@ class MainLayout(BoxLayout):
         row3.add_widget(self.slider_target)
         input_box.add_widget(row3)
         self.add_widget(input_box)
-
         self.input_delivery.bind(text=self.on_input_change)
         self.input_h.bind(text=self.on_input_change)
         self.input_m.bind(text=self.on_input_change)
-
         # 按钮区域
         btn_box = BoxLayout(size_hint_y=None, height=55, spacing=20)
         self.btn_start = Button(text="Start Timer", background_color=(0.3, 0.8, 0.3, 1))
@@ -164,7 +147,6 @@ class MainLayout(BoxLayout):
         btn_box.add_widget(self.btn_start)
         btn_box.add_widget(self.btn_stop)
         self.add_widget(btn_box)
-
         # 信息展示区
         info_box = BoxLayout(orientation="vertical", spacing=14)
         # Now
@@ -173,14 +155,12 @@ class MainLayout(BoxLayout):
         self.lbl_now_val = Label(text="--:--:--", font_size="18sp", color=(0.9,0.9,0.9,1), size_hint_x=0.7, halign="right")
         time_row_now.add_widget(self.lbl_now_val)
         info_box.add_widget(time_row_now)
-
         # Finish
         time_row_finish = BoxLayout(size_hint_y=None, height=36, spacing=10)
         time_row_finish.add_widget(Label(text="Finish", font_size="14sp", color=(0.5,0.5,0.5,1), size_hint_x=0.3))
         self.lbl_finish_val = Label(text="--:--:--", font_size="18sp", color=(1,0.7,0.2,1), size_hint_x=0.7, halign="right")
         time_row_finish.add_widget(self.lbl_finish_val)
         info_box.add_widget(time_row_finish)
-
         self.lbl_current_pct = Label(text="Current Progress: 0.0%", font_size="16sp", color=(0.2,0.4,0.8,1), bold=True, size_hint_y=None, height=32)
         info_box.add_widget(self.lbl_current_pct)
         self.lbl_progress = Label(text="Target Threshold:81%", font_size="16sp", color=(0.2,0.4,0.8,1), bold=True, size_hint_y=None, height=32)
@@ -188,7 +168,6 @@ class MainLayout(BoxLayout):
         self.lbl_result = Label(text="--:--:--", font_size="48sp", color=(0.2,0.2,0.8,1), bold=True, size_hint_y=None, height=70)
         info_box.add_widget(self.lbl_result)
         self.add_widget(info_box)
-
         Clock.schedule_interval(self.update_ui, 0.5)
         self.calc_preview_progress()
         # 屏幕闪烁定时器
@@ -266,7 +245,6 @@ class MainLayout(BoxLayout):
         self.lbl_result.font_size = "30sp"
         self.lbl_result.color = (1, 0.3, 0, 1)
         self.flash_active = True  # 开启屏幕闪烁
-
         # 跨平台提醒
         if plyer_available:
             # 安卓系统消息通知
@@ -282,7 +260,6 @@ class MainLayout(BoxLayout):
             # Windows电脑端蜂鸣
             if winsound:
                 winsound.Beep(1000, 800)
-
         Clock.schedule_once(lambda dt: self._show_alert_popup(target), 0.3)
         self.logic.stop()
 
@@ -291,7 +268,7 @@ class MainLayout(BoxLayout):
         stop_time = time.time() + 10
         while time.time() < stop_time:
             try:
-                vibrator.vibrate(2)
+                vibrator.vibrate(2000)
                 time.sleep(1)
             except Exception:
                 break
@@ -316,30 +293,24 @@ class MainLayout(BoxLayout):
         self.lbl_now_val.text = now.strftime("%H:%M:%S")
         if not self.logic.is_running:
             return
-
         progress = self.logic.get_current_progress()
         target = self.logic.target_pct
         self.lbl_current_pct.text = f"Current Progress: {progress:.1f}%"
-
         if progress >= target:
             self.on_target_reached()
             return
-
         if progress >= target * 0.8:
             color = (1, 0.6, 0, 1)
         else:
             color = (0.2, 0.4, 0.8, 1)
-
         self.lbl_current_pct.color = color
         self.lbl_progress.text = f"Target Threshold: {target}%"
         self.lbl_progress.color = color
-
         finish_time = self.logic.get_eta()
         if finish_time:
             self.lbl_finish_val.text = finish_time.strftime("%H:%M:%S")
         else:
             self.lbl_finish_val.text = "__:__:__"
-
         sec = int(self.logic.remaining_seconds)
         h = sec // 3600
         m = (sec % 3600) // 60
@@ -353,12 +324,11 @@ class MainLayout(BoxLayout):
         popup = Popup(title=title, content=content, size_hint=(None, None), size=(300, 200))
         popup.open()
 
-
 class TimerApp(App):
     def build(self):
-        Window.size = (520, 680)
+        if platform.system() != "Android":
+            Window.size = (520, 680)
         return MainLayout()
-
 
 if __name__ == "__main__":
     TimerApp().run()
